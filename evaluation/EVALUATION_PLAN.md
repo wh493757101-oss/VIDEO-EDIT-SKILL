@@ -1,5 +1,13 @@
 # 视频高光剪辑 — 评测方案
 
+> **⚠️ 核心原则：所有量化指标必须由评测代码计算，禁止手动估算、禁止目测、禁止编造。**
+>
+> 评测流程：
+> 1. 先运行 `python -m evaluation.runner`，让 `HighlightEvaluator` 用 tIoU 算法对 predicted vs ground_truth 做贪心匹配，自动算出 Precision/Recall/F1/mAP/Kendall's τ 等全部数值
+> 2. 再让 `LLMJudge` 观看实际视频片段做主观评分
+> 3. 最后 `compute_weighted_score()` 自动算加权总分
+> 4. **你不能跳过代码自己猜 IoU 或 F1 值，必须读取 `report.json` 或 `report.txt` 中的实际计算结果。**
+
 ## 一、评测目标
 
 评估多模态大模型 + FFmpeg 视频高光剪辑 Pipeline 的剪辑质量：给定一段长视频 + 自然语言剪辑指令，多模态模型识别的高光片段是否准确、完整、精彩。

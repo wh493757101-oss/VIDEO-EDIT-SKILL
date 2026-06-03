@@ -147,13 +147,15 @@ Pipeline 采用"快速失败"策略：多模态识别不可用时直接返回错
 
 ## 评测体系
 
+> **📋 收到评测/评估请求时，必须先读取 [`evaluation/EVALUATION_PLAN.md`](evaluation/EVALUATION_PLAN.md) 了解完整规范，然后运行 `python -m evaluation.runner` 执行评测。禁止跳过代码直接目测或编造 IoU/F1 等指标。**
+
 三层架构：**tIoU 量化评测（50%）→ 双 LLM Judge（50%）→ 加权融合**
 
 - 输入：`video.mp4` + `instruction.json`（剪辑指令）+ `ground_truth.json`（标注真值）+ `metadata.yaml`（元信息）
+- 量化评测：运行 `python -m evaluation.runner`，由 `HighlightEvaluator` 做 tIoU 贪心匹配自动计算所有指标
+- LLM Judge：`LLMJudge` 观看视频片段做主观评分（Segment Judge + Video Judge）
 - 输出：`report.txt`（汇总 + 每用例详情）+ `report.json`（结构化完整数据）
-- 运行：`python -m evaluation.runner`
-
-> 完整评测规范（评测规则、数据流转、指标体系、LLM Judge 规则、输出规格、用例集结构）见 [`evaluation/EVALUATION_PLAN.md`](evaluation/EVALUATION_PLAN.md)。评测相关操作时请先读取该文件。
+- 所有数值来自代码计算结果，**读取 report.json 获取，不要自己猜**
 
 ## 审查标准
 
