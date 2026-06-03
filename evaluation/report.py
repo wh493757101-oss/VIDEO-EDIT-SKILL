@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ReportConfig:
     output_dir: str = ""
-    save_charts: bool = True
     save_json: bool = True
 
 
@@ -218,9 +217,6 @@ class ReportGenerator:
             text_path.write_text(report_text, encoding="utf-8")
             logger.info("文本报告已保存: %s", text_path)
 
-            if self.config.save_charts:
-                self._save_charts(eval_report, judge_report, out_dir)
-
             self._upload_to_tos(out_dir)
 
         return report_text
@@ -407,85 +403,3 @@ class ReportGenerator:
             data["weighted_score"] = weighted
 
         return json.dumps(data, ensure_ascii=False, indent=2)
-
-    def _save_charts(
-        self,
-        eval_report: Any,
-        judge_report: Any,
-        out_dir: Path,
-    ) -> None:
-        try:
-            import matplotlib
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-            import numpy as np
-        except ImportError:
-            logger.warning("matplotlib 未安装，跳过图表生成")
-            return
-
-        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-
-        # 1. F1 by category
-        if eval_report.by_category:
-            ax = axes[0][0]
-            cats = list(eval_report.by_category.keys())
-            f1s = [eval_report.by_category[c]["f1"] for c in cats]
-            colors = plt.cm.Set2(np.linspace(0, 1, len(cats)))
-            ax.bar(cats, f1s, color=colors)
-            ax.set_title("F1 by Category")
-            ax.set_ylabel("F1")
-            ax.set_ylim(0, 1)
-            for i, v in enumerate(f1s):
-                ax.text(i, v + 0.02, f"{v:.2f}", ha="center")
-
-        # 2. F1 by difficulty
-        if eval_report.by_difficulty:
-            ax = axes[0][1]
-            difs = list(eval_report.by_difficulty.keys())
-            f1s = [eval_report.by_difficulty[d]["f1"] for d in difs]
-            colors = ["#4CAF50" if d == "easy" else "#FF9800" if d == "medium" else "#F44336" for d in difs]
-            ax.bar(difs, f1s, color=colors)
-            ax.set_title("F1 by Difficulty")
-            ax.set_ylabel("F1")
-            ax.set_ylim(0, 1)
-            for i, v in enumerate(f1s):
-                ax.text(i, v + 0.02, f"{v:.2f}", ha="center")
-
-        # 3. F1 by source
-        if eval_report.by_source:
-            ax = axes[1][0]
-            srcs = list(eval_report.by_source.keys())
-            f1s = [eval_report.by_source[s]["f1"] for s in srcs]
-            ax.bar(srcs, f1s, color=["#2196F3", "#FF5722"])
-            ax.set_title("F1 by Source")
-            ax.set_ylabel("F1")
-            ax.set_ylim(0, 1)
-            for i, v in enumerate(f1s):
-                ax.text(i, v + 0.02, f"{v:.2f}", ha="center")
-
-        # 4. Video Judge chart
-        if hasattr(judge_report, 'video_average') and judge_report.video_average > 0:
-            ax = axes[1][1]
-            ax.set_title("Video Judge（集锦质量）")
-            dims = ["Rhythm", "Transition", "AV Sync", "Complete", "Fit"]
-            values = [
-                judge_report.video_rhythm,
-                getattr(judge_report, 'video_transition_quality', 0),
-                judge_report.video_audiovisual_sync,
-                judge_report.video_content_completeness,
-                judge_report.video_instruction_fit,
-            ]
-            x = np.arange(len(dims))
-            ax.bar(x, values, color=plt.cm.Set3(np.linspace(0, 1, 5)))
-            ax.set_xticks(x)
-            ax.set_xticklabels(dims, fontsize=8)
-            ax.set_ylabel("Score")
-            ax.set_ylim(0, 10)
-            for i, v in enumerate(values):
-                ax.text(i, v + 0.1, f"{v:.1f}", ha="center", fontsize=7)
-
-        plt.tight_layout()
-        chart_path = out_dir / "charts.png"
-        fig.savefig(chart_path, dpi=150, bbox_inches="tight")
-        plt.close(fig)
-        logger.info("图表已保存: %s", chart_path)

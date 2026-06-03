@@ -126,7 +126,7 @@ def verify_evaluation():
     )
 
     output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "output")
-    gen = ReportGenerator(ReportConfig(output_dir=output_dir, save_charts=True))
+    gen = ReportGenerator(ReportConfig(output_dir=output_dir))
     report_text = gen.generate(eval_report, judge_report, weighted)
     logger.info("报告已生成到 ./output/")
     print("\n" + report_text)

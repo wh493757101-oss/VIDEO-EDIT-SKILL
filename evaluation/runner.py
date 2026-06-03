@@ -101,7 +101,6 @@ class EvalRunner:
         report_gen = ReportGenerator(
             ReportConfig(
                 output_dir=self.config.output_dir,
-                save_charts=bool(self.config.output_dir),
                 save_json=bool(self.config.output_dir),
             )
         )

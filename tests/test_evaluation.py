@@ -495,7 +495,7 @@ class TestReportGenerator:
             video_average=4.0,
         )
 
-        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path), save_charts=False))
+        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path)))
         text = gen.generate(eval_report, judge_report)
 
         assert "视频高光剪辑" in text
@@ -543,7 +543,7 @@ class TestReportGenerator:
             video_average=4.0,
         )
 
-        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path), save_charts=False))
+        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path)))
         gen.generate(eval_report, judge_report)
 
         json_path = tmp_path / "report.json"
@@ -589,15 +589,16 @@ class TestReportGenerator:
             video_average=4.0,
         )
 
-        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path), save_charts=True))
+        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path)))
         gen.generate(eval_report, judge_report)
 
-        chart_path = tmp_path / "charts.png"
-        assert chart_path.exists()
+        json_path = tmp_path / "report.json"
+        assert json_path.exists()
+        txt_path = tmp_path / "report.txt"
+        assert txt_path.exists()
 
     def test_report_config_defaults(self):
         cfg = ReportConfig()
-        assert cfg.save_charts is True
         assert cfg.save_json is True
 
 
@@ -1138,7 +1139,7 @@ class TestReportWithWeightedScore:
         )
         weighted = {"eval_score": 1.0, "judge_score": 0.4, "segment_judge_score": 0.4, "video_judge_score": 0.4, "weighted_score": 0.7, "degraded": False}
 
-        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path), save_charts=False))
+        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path)))
         text = gen.generate(eval_report, judge_report, weighted)
 
         assert "加权总分" in text
@@ -1161,7 +1162,7 @@ class TestReportWithWeightedScore:
         judge_report = JudgeReport(degraded=True, segment_degraded=True, video_degraded=True)
         weighted = {"eval_score": 1.0, "judge_score": 0.0, "segment_judge_score": 0.0, "video_judge_score": 0.0, "weighted_score": 1.0, "degraded": True}
 
-        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path), save_charts=False))
+        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path)))
         text = gen.generate(eval_report, judge_report, weighted)
 
         assert "降级" in text
@@ -1206,7 +1207,7 @@ class TestReportWithWeightedScore:
         )
         weighted = {"eval_score": 1.0, "judge_score": 0.4, "segment_judge_score": 0.4, "video_judge_score": 0.4, "weighted_score": 0.7, "degraded": False}
 
-        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path), save_charts=False))
+        gen = ReportGenerator(ReportConfig(output_dir=str(tmp_path)))
         gen.generate(eval_report, judge_report, weighted)
 
         json_path = tmp_path / "report.json"

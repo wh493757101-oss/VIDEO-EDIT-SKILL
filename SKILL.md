@@ -149,13 +149,11 @@ Pipeline 采用"快速失败"策略：多模态识别不可用时直接返回错
 
 三层架构：**tIoU 量化评测（50%）→ 双 LLM Judge（50%）→ 加权融合**
 
-- **量化评测** (`evaluator.py`) — tIoU 片段匹配，Precision/Recall/F1/Hit Rate/MAE/mAP/Kendall's τ
-- **Segment Judge** (`llm_judge.py`) — 逐片段评测：内容完整性、片段质量、指令契合度（权重 25%）
-- **Video Judge** (`llm_judge.py`) — 集锦整体评测：节奏感、转场质量、音画同步、内容完整性、指令契合度（权重 25%）
-- **评测编排** (`runner.py`) — 自动加载用例 → 运行 Pipeline → 并行评测
-- **报告生成** (`report.py`) — 文本报告 + JSON 导出 + 可视化图表
+- 输入：`video.mp4` + `instruction.json`（剪辑指令）+ `ground_truth.json`（标注真值）+ `metadata.yaml`（元信息）
+- 输出：`report.txt`（汇总 + 每用例详情）+ `report.json`（结构化完整数据）
+- 运行：`python -m evaluation.runner`
 
-测试用例基于 30 组 benchmark 数据集（normal/complex/adversarial 三类，覆盖体育/游戏/旅行/教育/娱乐/户外/动漫/生活等场景）。
+> 完整评测规范（评测规则、数据流转、指标体系、LLM Judge 规则、输出规格、用例集结构）见 [`evaluation/EVALUATION_PLAN.md`](evaluation/EVALUATION_PLAN.md)。评测相关操作时请先读取该文件。
 
 ## 审查标准
 
