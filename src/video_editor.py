@@ -64,6 +64,7 @@ class EditorConfig:
     add_transitions: bool = False
     transition_duration: float = 0.5
     keyframe_accurate: bool = True
+    keep_clips: bool = False  # 保留个体片段文件（LLM Judge 需要）
 
     # -- 日志与超时 --
     log_ffmpeg_stderr: bool = True
@@ -518,6 +519,26 @@ class VideoEditor:
         ]
         self._run_ffmpeg(cmd)
 
+    def _cleanup_temp_files(
+        self, clip_paths: list[str], output_dir: Path,
+    ) -> None:
+        """清理临时中间文件。keep_clips=True 时跳过，保留个体片段供 LLM Judge 评测。"""
+        for cp in clip_paths:
+            try:
+                Path(cp).unlink(missing_ok=True)
+            except OSError:
+                pass
+        for f in output_dir.glob("_norm_*.mp4"):
+            try:
+                f.unlink(missing_ok=True)
+            except OSError:
+                pass
+        concat_list = output_dir / self.config.concat_list_filename
+        try:
+            concat_list.unlink(missing_ok=True)
+        except OSError:
+            pass
+
     # ---- main editing method -----------------------------------------------
 
     def edit_with_ffmpeg(
@@ -587,6 +608,7 @@ class VideoEditor:
                 else:
                     self._cut_segment_streamcopy(video_path, start, end, clip_path)
                 clip_paths.append(clip_path)
+                seg["clip_path"] = clip_path
 
             # 5. 音频归一化
             if self.config.normalize_audio:
@@ -599,23 +621,8 @@ class VideoEditor:
                 self._concat_streamcopy(clip_paths, output_path)
 
         finally:
-            # 7. 清理临时文件
-            for cp in clip_paths:
-                try:
-                    Path(cp).unlink(missing_ok=True)
-                except OSError:
-                    pass
-            # 清理归一化产生的中间文件
-            for f in output_dir.glob("_norm_*.mp4"):
-                try:
-                    f.unlink(missing_ok=True)
-                except OSError:
-                    pass
-            concat_list = output_dir / self.config.concat_list_filename
-            try:
-                concat_list.unlink(missing_ok=True)
-            except OSError:
-                pass
+            if not self.config.keep_clips:
+                self._cleanup_temp_files(clip_paths, output_dir)
 
         t_concat = time.time() - t_start
 

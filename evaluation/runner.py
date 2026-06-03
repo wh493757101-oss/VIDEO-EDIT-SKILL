@@ -113,14 +113,16 @@ class EvalRunner:
         import tracemalloc
 
         from src.main import PipelineConfig, VideoHighlightPipeline
+        from src.video_editor import EditorConfig
         from src.video_fetcher import LocalFileSource, TosSource, UrlSource
 
         source_type = case.get("source_type", "local")
         instruction = case.get("instruction", {})
         description = instruction.get("prompt", "")
 
+        editor_config = EditorConfig(keep_clips=True)
         pipeline = VideoHighlightPipeline(
-            PipelineConfig(output_dir=self.config.output_dir)
+            PipelineConfig(output_dir=self.config.output_dir, editor=editor_config)
         )
 
         if source_type == "tos":
@@ -159,7 +161,7 @@ class EvalRunner:
                     "end_time": seg["end_time"],
                     "score": seg.get("score", 0.5),
                     "label": seg.get("label", ""),
-                    "clip_url": seg.get("clip_url", ""),
+                    "clip_url": seg.get("clip_path", seg.get("clip_url", "")),
                 }
                 for seg in result.edit.segments
             ]

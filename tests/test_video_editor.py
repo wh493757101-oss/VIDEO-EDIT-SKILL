@@ -113,6 +113,11 @@ class TestEditorConfig:
         assert cfg.output_format == "mp4"
         assert cfg.log_ffmpeg_stderr is True
         assert cfg.ffmpeg_timeout == 300
+        assert cfg.keep_clips is False
+
+    def test_keep_clips_flag(self):
+        cfg = EditorConfig(keep_clips=True)
+        assert cfg.keep_clips is True
 
     def test_encoding_custom(self):
         cfg = EditorConfig(crf=18, preset="slow", force_reencode=True)
@@ -386,6 +391,18 @@ class TestVideoEditorFFmpeg:
 
         clip_files = list(Path(tmp_path).glob("_clip_*.mp4"))
         assert len(clip_files) == 0
+
+    def test_edit_with_ffmpeg_keep_clips_attaches_path(self, mocker, tmp_path):
+        """keep_clips=True 时片段 dict 包含 clip_path 且不清理。"""
+        mock_run = mocker.patch("subprocess.run")
+        cfg = EditorConfig(output_dir=str(tmp_path), keep_clips=True)
+        editor = VideoEditor(cfg)
+        segments = [{"start_time": 0.0, "end_time": 3.0, "score": 0.9}]
+
+        result = editor.edit_with_ffmpeg("/tmp/video.mp4", segments)
+
+        assert "clip_path" in result.segments[0]
+        assert "_clip_000.mp4" in result.segments[0]["clip_path"]
 
     def test_force_reencode(self, mocker, tmp_path):
         mock_run = mocker.patch("subprocess.run")
