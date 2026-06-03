@@ -639,7 +639,7 @@ class TestCaseLoader:
         self.root = Path(test_cases_root)
 
     def _load_cases_from_dir(
-        self, dir_name: str, source_type: str
+        self, dir_name: str, default_source_type: str = "local"
     ) -> list[dict[str, Any]]:
         cases_yaml = self.root / dir_name / "cases.yaml"
         if not cases_yaml.exists():
@@ -675,18 +675,22 @@ class TestCaseLoader:
                     logger.warning("ground_truth.json 解析失败 [%s]: %s", c["id"], e)
                     ground_truth = []
 
+            source_type = c.get("source_type", default_source_type)
             case: dict[str, Any] = {
                 "case_id": c["id"],
                 "category": c["category"],
                 "difficulty": c["difficulty"],
                 "source_type": source_type,
-                "video_path": str(case_dir / c.get("video_file", "video.mp4")),
                 "instruction": instruction,
                 "ground_truth": ground_truth,
             }
 
-            if source_type == "remote":
+            if source_type == "tos":
+                case["tos_path"] = c.get("tos_path", "")
+            elif source_type == "remote":
                 case["source_url"] = c.get("source_url", "")
+            else:
+                case["video_path"] = str(case_dir / c.get("video_file", "video.mp4"))
 
             cases.append(case)
 

@@ -730,6 +730,41 @@ cases:
         assert len(cases[0]["ground_truth"]) == 1
         assert cases[0]["ground_truth"][0]["label"] == "进球1"
 
+    def test_load_tos_cases(self, tmp_path):
+        """TOS source_type 从 YAML 读取，不再硬编码。"""
+        benchmark_dir = tmp_path / "benchmark"
+        benchmark_dir.mkdir()
+        cases_yaml = benchmark_dir / "cases.yaml"
+        cases_yaml.write_text("""
+cases:
+  - id: "case_tos_001"
+    category: 体育
+    difficulty: normal
+    description: "TOS远程视频测试"
+    source_type: tos
+    tos_path: "tos://mybucket/videos/test.mp4"
+""", encoding="utf-8")
+
+        case_dir = benchmark_dir / "case_tos_001"
+        case_dir.mkdir()
+        (case_dir / "instruction.json").write_text(
+            '{"prompt": "测试TOS加载"}',
+            encoding="utf-8",
+        )
+        (case_dir / "ground_truth.json").write_text(
+            '{"highlights": []}',
+            encoding="utf-8",
+        )
+
+        loader = TestCaseLoader(str(tmp_path))
+        cases = loader.load_benchmark_cases()
+
+        assert len(cases) == 1
+        assert cases[0]["case_id"] == "case_tos_001"
+        assert cases[0]["source_type"] == "tos"
+        assert cases[0]["tos_path"] == "tos://mybucket/videos/test.mp4"
+        assert "video_path" not in cases[0]
+
     def test_load_all_includes_benchmark(self, tmp_path):
         local_dir = tmp_path / "open_data"
         local_dir.mkdir()
