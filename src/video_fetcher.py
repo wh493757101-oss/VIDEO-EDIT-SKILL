@@ -229,7 +229,7 @@ class VideoFetcher:
         return self._preprocess(video_path)
 
     # 短视频剪辑场景限制
-    MAX_DURATION_SECONDS = 300   # 5 分钟
+    MAX_DURATION_SECONDS = 600   # 10 分钟
     MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024  # 500MB
 
     def _preprocess(self, video_path: str) -> VideoMetadata:
@@ -264,7 +264,7 @@ class VideoFetcher:
                 raise ValueError(f"视频文件中无视频帧: {video_path}，请检查视频源后重试")
             if duration > self.MAX_DURATION_SECONDS:
                 raise ValueError(
-                    f"视频时长过长（{duration:.0f}s），当前限制 {self.MAX_DURATION_SECONDS}s（5 分钟）以内。"
+                    f"视频时长过长（{duration:.0f}s），当前限制 {self.MAX_DURATION_SECONDS}s（10 分钟）以内。"
                     " 请裁剪视频后重试"
                 )
 
