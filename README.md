@@ -114,12 +114,14 @@ video-highlight-skill/
 │   ├── report.py               # 可视化报告生成
 │   ├── runner.py               # 评测流程编排
 │   └── test_cases/
-│       ├── open_data/          # 35 组本地视频用例（SumMe 数据集）
-│       └── self-built_data/    # 10 组远程视频用例
+│       └── benchmark/          # 30 组 benchmark 评测用例（normal/complex/adversarial）
 ├── scripts/
 │   ├── verify_e2e.py           # 端到端验证脚本
 │   ├── verify_e2e_strict.py    # 严格端到端验证
-│   ├── verify_connectivity.py   # API 连通性验证
+│   ├── verify_connectivity.py  # API 连通性验证
+│   ├── annotate.py             # 交互式视频标注工具
+│   ├── generate_benchmark.py   # Benchmark 数据集脚手架生成器
+│   ├── fix_instructions.py     # Benchmark 指令批量更新
 └── tests/
     └── test_*.py
 ```
@@ -139,7 +141,6 @@ from evaluation.runner import EvalRunner, EvalRunConfig
 config = EvalRunConfig(
     test_cases_root="evaluation/test_cases",
     output_dir="reports",
-    skip_edit=True,
 )
 runner = EvalRunner(config)
 eval_report, judge_report, report_text = runner.run()
@@ -175,17 +176,15 @@ print(report_text)
 
 ### 添加测试用例
 
-1. 在 `cases.yaml` 中注册用例（id / category / difficulty / instruction）
-2. 创建 `case_XXX/` 目录，放入视频文件
-3. 编写 `instruction.json`（含 `prompt`、`style`、`core_highlight_definition` 字段）
+1. 在 `benchmark/cases.yaml` 中注册用例（id / category / difficulty / description / video_file）
+2. 创建 `case_bm_XXX/` 目录，放入视频文件
+3. 编写 `instruction.json`（含 `prompt` 字段）
 4. 编写 `ground_truth.json`（含 `highlights` 数组）
 
 ```json
 // instruction.json
 {
-  "prompt": "帮我把精彩片段剪成60秒集锦",
-  "style": "快节奏",
-  "core_highlight_definition": "进球、助攻、精彩扑救"
+  "prompt": "帮我把精彩片段剪成60秒集锦"
 }
 
 // ground_truth.json

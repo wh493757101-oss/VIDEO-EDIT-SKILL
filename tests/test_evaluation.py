@@ -682,6 +682,10 @@ cases:
         remote_dir.mkdir()
         (remote_dir / "cases.yaml").write_text("cases: []", encoding="utf-8")
 
+        benchmark_dir = tmp_path / "benchmark"
+        benchmark_dir.mkdir()
+        (benchmark_dir / "cases.yaml").write_text("cases: []", encoding="utf-8")
+
         loader = TestCaseLoader(str(tmp_path))
         cases = loader.load_all()
         assert cases == []
@@ -690,6 +694,72 @@ cases:
         loader = TestCaseLoader(str(tmp_path))
         cases = loader.load_local_cases()
         assert cases == []
+
+    def test_load_benchmark_cases(self, tmp_path):
+        benchmark_dir = tmp_path / "benchmark"
+        benchmark_dir.mkdir()
+        cases_yaml = benchmark_dir / "cases.yaml"
+        cases_yaml.write_text("""
+cases:
+  - id: "case_bm_001"
+    category: 体育
+    difficulty: normal
+    description: "足球比赛进球集锦"
+    video_file: "video.mp4"
+""", encoding="utf-8")
+
+        case_dir = benchmark_dir / "case_bm_001"
+        case_dir.mkdir()
+        (case_dir / "instruction.json").write_text(
+            '{"prompt": "帮我把这个足球视频的进球瞬间剪成60秒集锦"}',
+            encoding="utf-8",
+        )
+        (case_dir / "ground_truth.json").write_text(
+            '{"highlights": [{"start_time": 5.0, "end_time": 12.0, "label": "进球1", "score": 0.95}]}',
+            encoding="utf-8",
+        )
+
+        loader = TestCaseLoader(str(tmp_path))
+        cases = loader.load_benchmark_cases()
+
+        assert len(cases) == 1
+        assert cases[0]["case_id"] == "case_bm_001"
+        assert cases[0]["category"] == "体育"
+        assert cases[0]["difficulty"] == "normal"
+        assert cases[0]["source_type"] == "local"
+        assert len(cases[0]["ground_truth"]) == 1
+        assert cases[0]["ground_truth"][0]["label"] == "进球1"
+
+    def test_load_all_includes_benchmark(self, tmp_path):
+        local_dir = tmp_path / "open_data"
+        local_dir.mkdir()
+        (local_dir / "cases.yaml").write_text("cases: []", encoding="utf-8")
+
+        remote_dir = tmp_path / "self-built_data"
+        remote_dir.mkdir()
+        (remote_dir / "cases.yaml").write_text("cases: []", encoding="utf-8")
+
+        benchmark_dir = tmp_path / "benchmark"
+        benchmark_dir.mkdir()
+        benchmark_yaml = benchmark_dir / "cases.yaml"
+        benchmark_yaml.write_text("""
+cases:
+  - id: "case_bm_001"
+    category: 体育
+    difficulty: normal
+    description: "足球比赛进球集锦"
+    video_file: "video.mp4"
+""", encoding="utf-8")
+        bm_case_dir = benchmark_dir / "case_bm_001"
+        bm_case_dir.mkdir()
+        (bm_case_dir / "instruction.json").write_text('{"prompt": "test"}', encoding="utf-8")
+        (bm_case_dir / "ground_truth.json").write_text('{"highlights": []}', encoding="utf-8")
+
+        loader = TestCaseLoader(str(tmp_path))
+        cases = loader.load_all()
+
+        assert len(cases) == 1
+        assert cases[0]["case_id"] == "case_bm_001"
 
 
 class TestEvalRunner:
@@ -701,6 +771,10 @@ class TestEvalRunner:
         remote_dir = tmp_path / "self-built_data"
         remote_dir.mkdir()
         (remote_dir / "cases.yaml").write_text("cases: []", encoding="utf-8")
+
+        benchmark_dir = tmp_path / "benchmark"
+        benchmark_dir.mkdir()
+        (benchmark_dir / "cases.yaml").write_text("cases: []", encoding="utf-8")
 
         runner = EvalRunner(EvalRunConfig(test_cases_root=str(tmp_path)))
         eval_report, judge_report, text = runner.run()

@@ -90,65 +90,52 @@
 
 ### 2.2 对比分析
 
-| 维度 | 行业有 | 我们有 | 差距/建议 |
-|------|--------|--------|-----------|
+| 维度 | 行业有 | 我们有 | 说明 |
+|------|--------|--------|------|
 | **Precision/Recall/F1** | ✓ | ✓ | 一致 |
-| **tIoU** | ✓ (mAP@多阈值) | ✓ (单一均值) | **可补充**：行业用多 IoU 阈值 mAP (0.5, 0.75, [0.5:0.95])，我们只算了一个均值 |
+| **微平均 Precision/Recall/F1** | ✓ | ✓ | 已实现宏平均 + 微平均双重聚合 |
+| **mAP@多阈值** | ✓ (mAP@0.5, 0.75, [0.5:0.95]) | ✓ | 已实现 `compute_multi_iou_map()`，10 个阈值 |
 | **HIT@K** | ✓ (HIT@1) | ✓ (@1, @3) | 我们更细（多了 @3） |
 | **MAE** | ✗ | ✓ | 我们的差异化指标 |
+| **片段数偏差率 / 集锦时长占比 / 指令时长契合度** | ✗ | ✓ | 我们的差异化指标 |
 | **tIoU 分布** | ✗ | ✓ | 我们的差异化指标 |
 | **异常率** | ✗ | ✓ | 我们的差异化指标 |
-| **Token 效率** | 少数工作有 GFLOPs | ✓ | 我们的差异化指标 |
-| **LLM Judge** | 少数工作有用户研究 | ✓ | 我们的差异化指标 |
-| **Kendall's τ / Spearman's ρ** | ✓ (TVSum 标配) | ✗ | **缺失**：排序质量指标，适合评测 saliency score 的排序能力 |
+| **Token 效率 / 阶段耗时 / 处理倍速 / 内存统计** | 少数工作有 GFLOPs | ✓ | 已实现完整性能面板 |
+| **LLM Judge（双 Judge 架构）** | 少数工作有用户研究 | ✓ | 已实现 Segment Judge + Video Judge |
+| **Kendall's τ / Spearman's ρ** | ✓ (TVSum 标配) | ✓ | 已实现 `compute_rank_correlation()` |
 | **跨类别/跨难度分组** | ✓ (per-category) | ✓ | 一致 |
-| **多标注者一致性** | ✓ (QVHighlights 3 标注者取平均) | ✗ | 我们的 GT 是单人标注，缺少标注质量验证 |
-| **Ablation Study** | ✓ (标配) | ✗ | **缺失**：无法量化各模块的贡献 |
-| **跨数据集泛化** | ✓ | ✗ | 受限于自建数据集 |
-| **效率指标** | GFLOPs, 推理时间 | Token 效率 | 可补充推理时间 |
-| **CLIP 语义评分** | 新兴方向 | ✗ | 可选：用 CLIP 评估预测片段与 instruction 的语义匹配度 |
+| **多标注者一致性** | ✓ (QVHighlights 3 标注者取平均) | ✗ | GT 为单人标注，缺少标注质量验证 |
+| **Ablation Study** | ✓ (标配) | ✗ | 缺少模块化贡献量化 |
+| **跨数据集泛化** | ✓ | ✗ | 仅有自建 benchmark |
+| **CLIP 语义评分** | 新兴方向 | ✗ | 可选用 CLIP 评估预测片段与指令的语义匹配度 |
 
 ---
 
 ## 三、建议补充的评测维度
 
-### 3.1 高优先级（直接对标行业标准）
+### 3.1 高优先级（已完成）
 
-#### (1) 多 IoU 阈值 mAP
+> **注：以下两项已在当前版本中实现。** 多 IoU 阈值 mAP 通过 `MULTI_IOU_THRESHOLDS` + `compute_multi_iou_map()` 实现；Kendall's τ / Spearman's ρ 通过 `compute_rank_correlation()` 实现，依赖 scipy。
 
-当前我们只算了一个平均 tIoU。行业标准做法是报告多个阈值下的 mAP：
+#### (1) 多 IoU 阈值 mAP ✓
 
-```
-mAP@0.5  — 宽松匹配
+```mAP@0.5  — 宽松匹配
 mAP@0.75 — 严格匹配
-Avg mAP  — [0.5:0.05:0.95] 平均
-```
+Avg mAP  — [0.5:0.05:0.95] 平均```
 
-**改动**：在 `evaluator.py` 中增加多阈值 mAP 计算，`report.py` 中增加对应展示。
+**实现**：`evaluator.py` 中的 `compute_multi_iou_map()` 和 `MULTI_IOU_THRESHOLDS`。
 
-#### (2) Kendall's τ / Spearman's ρ（排序相关性）
+#### (2) Kendall's τ / Spearman's ρ（排序相关性） ✓
 
-这是 TVSum 评测的标配。衡量预测的 segment score 排序与 GT score 排序之间的相关性。
+**实现**：`evaluator.py` 中的 `compute_rank_correlation()`，对 predicted 和 GT 的 score 排序计算 τ 和 ρ。
 
-**改动**：在 `evaluator.py` 中增加 `compute_rank_correlation()` 方法，对 predicted segments 的 score 排序与 GT 的 score 排序计算 τ 和 ρ。
+### 3.2 中优先级（部分已实现）
 
-### 3.2 中优先级（增强评测深度）
+#### (3) Ablation 对比框架（未实现）
 
-#### (3) Ablation 对比框架
+#### (4) 推理时间统计 ✓
 
-评测框架支持对比不同配置：
-- Full pipeline vs 仅 FFmpeg 降级
-- Full pipeline vs 纯规则引擎
-- 有 description vs 无 description
-- 有后处理 vs 无后处理
-
-**改动**：在 `runner.py` 中增加 `ablation_configs` 参数，一次运行输出多组对比结果。
-
-#### (4) 推理时间统计
-
-补充端到端推理时间（视频预处理 / 模型推理 / 后处理 / 剪辑各阶段耗时）。
-
-**改动**：在 `PipelineResult` 或 `CostStats` 中增加 `timing` 字段。
+**已实现**：`PipelineTiming` 数据类（fetch/detection/clip_concat 三阶段耗时）和 `CostStats` 中的 `timing_*` 聚合字段。
 
 ### 3.3 低优先级（锦上添花）
 
@@ -164,11 +151,11 @@ Avg mAP  — [0.5:0.05:0.95] 平均
 
 ## 四、总结
 
-| 优先级 | 补充项 | 改动量 | 价值 |
-|--------|--------|--------|------|
-| **高** | 多 IoU 阈值 mAP | 小（evaluator + report） | 对标 QVHighlights 标准 |
-| **高** | Kendall's τ / Spearman's ρ | 小（evaluator + report） | 对标 TVSum 标准 |
-| **中** | Ablation 对比框架 | 中（runner + report） | 量化各模块贡献 |
-| **中** | 推理时间统计 | 小（main + evaluator） | 实际部署参考 |
-| **低** | CLIP 语义匹配度 | 中（新增依赖） | 补充 LLM Judge |
-| **低** | 多样性/冗余度 | 小 | 摘要质量评估 |
+| 优先级 | 补充项 | 状态 |
+|--------|--------|------|
+| **高** | 多 IoU 阈值 mAP | ✅ 已实现 |
+| **高** | Kendall's τ / Spearman's ρ | ✅ 已实现 |
+| **中** | Ablation 对比框架 | 未实现 |
+| **中** | 推理时间统计 | ✅ 已实现 |
+| **低** | CLIP 语义匹配度 | 未实现 |
+| **低** | 多样性/冗余度 | 未实现 |

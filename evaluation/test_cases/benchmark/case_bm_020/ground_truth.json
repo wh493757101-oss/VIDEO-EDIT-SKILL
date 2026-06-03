@@ -1,0 +1,22 @@
+{
+  "highlights": [
+    {
+      "start_time": 0,
+      "end_time": 10,
+      "label": "程序员代码没注释只有上帝知道",
+      "score": 1.0
+    },
+    {
+      "start_time": 33,
+      "end_time": 86,
+      "label": "Python的#号注释",
+      "score": 1.0
+    },
+    {
+      "start_time": 120,
+      "end_time": 140,
+      "label": "程序员放飞自我写注释",
+      "score": 1.0
+    }
+  ]
+}

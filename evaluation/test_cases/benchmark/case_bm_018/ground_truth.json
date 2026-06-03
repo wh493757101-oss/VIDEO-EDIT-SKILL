@@ -1,0 +1,16 @@
+{
+  "highlights": [
+    {
+      "start_time": 42,
+      "end_time": 61,
+      "label": "台南芥兰炒牛肉和牛肉汤",
+      "score": 1.0
+    },
+    {
+      "start_time": 335,
+      "end_time": 413,
+      "label": "参观台湾文学馆",
+      "score": 1.0
+    }
+  ]
+}

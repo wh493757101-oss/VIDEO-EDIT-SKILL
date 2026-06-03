@@ -130,37 +130,44 @@ LLM Judge 拆分为两个独立 Judge，**任务边界清晰，各司其职**：
 
 ## 四、评测用例集
 
-### 4.1 来源
+### 4.1 数据来源
 
-| 数据集 | 数量 | 类型 | 说明 |
-|--------|------|------|------|
-| open_data（SumMe） | 35 组 | local | 通用精彩片段标注，涵盖运动/新闻/生活等 |
-| self-built_data | 10 组 | remote | 自建 URL 用例，针对特定剪辑场景 |
+30 组自建 benchmark 数据集，涵盖 normal / complex / adversarial 三类难度：
+
+| 难度 | 数量 | 说明 |
+|------|------|------|
+| normal | 10 组 | 常规单场景剪辑（体育/游戏/旅行/美食/综艺/教育/户外/动漫） |
+| complex | 8 组 | 多维度要求、模糊指令、混合节奏等复杂场景 |
+| adversarial | 12 组 | 空指令、超长指令、静态画面、注入攻击、文件伪装、格式校验等边界测试 |
+
+视频类型覆盖：体育、游戏、旅行、生活/美食、娱乐/综艺、教育、户外、动漫。
 
 ### 4.2 用例结构
 
 ```
-case_XXX/
+case_bm_XXX/
 ├── video.mp4              # 原始视频
-├── instruction.json       # 剪辑指令 {"prompt": "帮我把精彩片段剪成60秒集锦", "style": "快节奏", "core_highlight_definition": "进球、助攻、精彩扑救"}
-└── ground_truth.json      # 人工标注 {"highlights": [{"start_time": 10.0, "end_time": 25.0, "label": "精彩动作", "score": 0.8}]}
+├── instruction.json       # 剪辑指令 {"prompt": "帮我把精彩片段剪成60秒集锦"}
+├── ground_truth.json      # 人工标注 {"highlights": [{"start_time": 10.0, "end_time": 25.0, "label": "精彩动作", "score": 0.8}]}
+└── metadata.yaml          # 视频元数据（duration/fps/resolution/scene_type）
 ```
 
-在 `cases.yaml` 中注册：
+在 `benchmark/cases.yaml` 中注册：
 
 ```yaml
 cases:
-  - id: case_001
-    category: sports
-    difficulty: medium
-    video_file: video.mp4
+  - id: case_bm_001
+    category: 体育
+    difficulty: normal
+    description: "足球比赛进球集锦"
+    video_file: "video.mp4"
 ```
 
 ### 4.3 用例维度
 
-- **视频类型**：sports / news / vlog / entertainment / education / outdoor / gaming
-- **难度**：easy（单场景少切换）/ medium（多场景中等变化）/ hard（快速切换复杂场景）
-- **来源**：local（本地文件）/ remote（URL 下载）
+- **视频类型**：体育 / 游戏 / 旅行 / 生活 / 娱乐 / 教育 / 户外 / 动漫
+- **难度**：normal（单场景少切换）/ complex（多场景复杂要求）/ adversarial（边界测试）
+- **对抗类型**：空指令 / 超长指令 / 静态画面 / 注入攻击 / 时长达上限 / 文件伪装
 
 ---
 

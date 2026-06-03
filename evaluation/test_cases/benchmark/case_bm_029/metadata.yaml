@@ -1,0 +1,6 @@
+source: benchmark
+duration: 0
+fps: null
+resolution: null
+scene_type: 对抗测试
+adversarial_type: 乱码指令

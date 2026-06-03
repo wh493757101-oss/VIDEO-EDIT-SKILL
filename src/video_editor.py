@@ -14,20 +14,26 @@ logger = logging.getLogger(__name__)
 
 
 def _get_ffprobe() -> str:
-    for candidate in [
-        shutil.which("ffprobe") or shutil.which("ffprobe.exe") or "",
-    ]:
+    for candidate in [shutil.which("ffprobe") or shutil.which("ffprobe.exe") or ""]:
         if candidate and Path(candidate).exists():
             return candidate
     try:
         import imageio_ffmpeg
         ffmpeg_exe: str | None = imageio_ffmpeg.get_ffmpeg_exe()
         if ffmpeg_exe:
-            ffprobe_exe = str(Path(ffmpeg_exe).parent / "ffprobe")
-            if Path(ffprobe_exe).exists():
-                return ffprobe_exe
+            for name in ("ffprobe.exe", "ffprobe"):
+                ffprobe_exe = str(Path(ffmpeg_exe).parent / name)
+                if Path(ffprobe_exe).exists():
+                    return ffprobe_exe
     except ImportError:
         pass
+    # 最后的回退：尝试用 ffmpeg 路径推测
+    ffmpeg_path = _get_ffmpeg()
+    if ffmpeg_path and Path(ffmpeg_path).exists():
+        for name in ("ffprobe.exe", "ffprobe"):
+            candidate = str(Path(ffmpeg_path).parent / name)
+            if Path(candidate).exists():
+                return candidate
     return "ffprobe"
 
 
@@ -439,9 +445,9 @@ class VideoEditor:
     ) -> None:
         """流拷贝 concat demuxer 拼接。"""
         concat_list = str(Path(output_path).parent / self.config.concat_list_filename)
-        with open(concat_list, "w") as f:
+        with open(concat_list, "w", encoding="utf-8") as f:
             for cp in clip_paths:
-                f.write(f"file '{cp}'\n")
+                f.write(f"file '{Path(cp).absolute().as_posix()}'\n")
 
         cmd = [
             _get_ffmpeg(), "-y", "-hide_banner",
@@ -464,7 +470,8 @@ class VideoEditor:
         # 先获取每个 clip 的时长
         durations: list[float] = []
         for cp in clip_paths:
-            probe = self.probe(cp)
+            abs_cp = str(Path(cp).absolute())
+            probe = self.probe(abs_cp)
             durations.append(probe.duration if probe.duration > 0 else 1.0)
 
         td = self.config.transition_duration

@@ -698,5 +698,8 @@ class TestCaseLoader:
     def load_remote_cases(self) -> list[dict[str, Any]]:
         return self._load_cases_from_dir("self-built_data", "remote")
 
+    def load_benchmark_cases(self) -> list[dict[str, Any]]:
+        return self._load_cases_from_dir("benchmark", "local")
+
     def load_all(self) -> list[dict[str, Any]]:
-        return self.load_local_cases() + self.load_remote_cases()
+        return self.load_local_cases() + self.load_remote_cases() + self.load_benchmark_cases()

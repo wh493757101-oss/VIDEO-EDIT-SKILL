@@ -1,0 +1,22 @@
+{
+  "highlights": [
+    {
+      "start_time": 0,
+      "end_time": 7,
+      "label": "赛前英雄选取教练碰拳",
+      "score": 1.0
+    },
+    {
+      "start_time": 168,
+      "end_time": 186,
+      "label": "团灭对手",
+      "score": 1.0
+    },
+    {
+      "start_time": 188,
+      "end_time": 200,
+      "label": "取得胜利队友激动相拥",
+      "score": 1.0
+    }
+  ]
+}

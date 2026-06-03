@@ -1,0 +1,6 @@
+source: benchmark
+duration: 30
+fps: null
+resolution: null
+scene_type: 对抗测试
+adversarial_type: 静态内容

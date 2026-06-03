@@ -1,0 +1,22 @@
+{
+  "highlights": [
+    {
+      "start_time": 11,
+      "end_time": 54,
+      "label": "西红柿准备",
+      "score": 1.0
+    },
+    {
+      "start_time": 79,
+      "end_time": 107,
+      "label": "鸡蛋炒制",
+      "score": 1.0
+    },
+    {
+      "start_time": 163,
+      "end_time": 174,
+      "label": "装盘展示",
+      "score": 1.0
+    }
+  ]
+}

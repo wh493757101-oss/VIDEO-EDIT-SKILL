@@ -1,0 +1,22 @@
+{
+  "highlights": [
+    {
+      "start_time": 0,
+      "end_time": 18,
+      "label": "第一轮游戏蓝队获胜",
+      "score": 1.0
+    },
+    {
+      "start_time": 54,
+      "end_time": 61,
+      "label": "林更新一石三鸟推下三人",
+      "score": 1.0
+    },
+    {
+      "start_time": 276,
+      "end_time": 288,
+      "label": "林更新推下所有人获得最终胜利",
+      "score": 1.0
+    }
+  ]
+}

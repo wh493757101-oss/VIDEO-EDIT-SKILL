@@ -11,3 +11,5 @@ output/
 reports/
 .claude/
 .clawhubignore
+.idea/
+evaluation/test_cases/**/video.mp4

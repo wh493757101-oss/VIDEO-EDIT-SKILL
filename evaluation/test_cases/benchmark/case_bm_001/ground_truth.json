@@ -1,0 +1,16 @@
+{
+  "highlights": [
+    {
+      "start_time": 12,
+      "end_time": 22,
+      "label": "进球集锦1",
+      "score": 1.0
+    },
+    {
+      "start_time": 102,
+      "end_time": 114,
+      "label": "进球集锦2",
+      "score": 1.0
+    }
+  ]
+}

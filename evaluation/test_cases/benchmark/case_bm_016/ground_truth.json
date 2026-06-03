@@ -1,0 +1,16 @@
+{
+  "highlights": [
+    {
+      "start_time": 0,
+      "end_time": 30,
+      "label": "人群缓慢滑行",
+      "score": 1.0
+    },
+    {
+      "start_time": 170,
+      "end_time": 176,
+      "label": "到达将军山滑雪场帅气刹停",
+      "score": 1.0
+    }
+  ]
+}
