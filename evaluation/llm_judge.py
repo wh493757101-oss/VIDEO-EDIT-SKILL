@@ -328,9 +328,35 @@ class LLMJudge:
             return video_path
 
         path = Path(video_path)
+        # 压缩大集锦视频，避免 base64 过大导致 API 断连
+        threshold = 10 * 1024 * 1024  # 10MB
+        if path.stat().st_size > threshold:
+            path = self._compress_judge_video(path)
+
         with open(path, "rb") as f:
             data = base64.b64encode(f.read()).decode()
         return f"data:video/mp4;base64,{data}"
+
+    def _compress_judge_video(self, video_path: Path) -> Path:
+        import subprocess
+        from src.video_fetcher import _get_ffmpeg
+
+        compressed = video_path.parent / (video_path.stem + "_judge_input.mp4")
+        ffmpeg = _get_ffmpeg()
+        cmd = [
+            ffmpeg, "-y", "-i", str(video_path),
+            "-vf", "scale=-2:360",
+            "-c:v", "libx264", "-crf", "35", "-preset", "faster",
+            "-c:a", "aac", "-b:a", "32k",
+            "-movflags", "+faststart",
+            str(compressed),
+        ]
+        subprocess.run(cmd, check=True, capture_output=True, timeout=120)
+        logger.info(
+            "Judge 视频压缩: %.1fMB -> %.1fMB",
+            video_path.stat().st_size / 1e6, compressed.stat().st_size / 1e6,
+        )
+        return compressed
 
     def _call_judge_api(
         self,
