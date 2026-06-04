@@ -427,10 +427,20 @@ class LLMJudge:
 
         # 收集有效的 clip_url
         clip_urls = [s.get("clip_url", "") for s in segments if s.get("clip_url")]
-        video_url = clip_urls[0] if clip_urls else None
+        video_url = self._resolve_video_url(clip_urls[0]) if clip_urls else None
 
         try:
-            parsed = self._call_judge_api(prompt, video_url=video_url, max_retries=max_retries)
+            # 直接用 chat() 绕过 _call_judge_api 的间歇 400 问题
+            response = self.ark_client.chat(
+                messages=[{"role": "user", "content": [
+                    {"type": "video_url", "video_url": {"url": video_url}},
+                    {"type": "text", "text": prompt},
+                ]}],
+                model=self.config.model,
+                temperature=0.3,
+                max_tokens=1024,
+            )
+            parsed = self.ark_client.extract_json(response)
             if "error" in parsed:
                 return SegmentJudgeScore(error=str(parsed["error"]))
             return SegmentJudgeScore(
