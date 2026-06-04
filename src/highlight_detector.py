@@ -106,7 +106,7 @@ class HighlightDetector:
         ffmpeg = _get_ffmpeg()
         cmd = [
             ffmpeg, "-y", "-i", video_path,
-            "-vf", "scale=min(1280,iw):min(720,ih):force_original_aspect_ratio=decrease",
+            "-vf", "scale=-2:720",
             "-c:v", "libx264", "-crf", "30", "-preset", "faster",
             "-c:a", "aac", "-b:a", "64k",
             "-movflags", "+faststart",
