@@ -101,7 +101,7 @@ class EvalRunner:
 
         # 保存每 case 独立报告
         if self.config.output_dir:
-            self._save_per_case_reports(eval_report, Path(self.config.output_dir))
+            self._save_per_case_reports(eval_report, Path(self.config.output_dir), results)
             # 汇总报告保存到 all/ 子目录
             all_dir = Path(self.config.output_dir) / "all"
             all_dir.mkdir(parents=True, exist_ok=True)
@@ -138,8 +138,9 @@ class EvalRunner:
             return
         delete_local_clips(str(out_root))
 
-    def _save_per_case_reports(self, eval_report: EvalReport, out_root: Path) -> None:
-        """为每个 case 生成独立 report.json 和 report.txt。"""
+    def _save_per_case_reports(self, eval_report: EvalReport, out_root: Path, results: list[dict[str, Any]] | None = None) -> None:
+        """为每个 case 生成独立 report.json / report.txt / judge_cache.json。"""
+        results_by_id = {r["case_id"]: r for r in (results or [])}
         for score in eval_report.scores:
             case_dir = out_root / score.case_id
             case_dir.mkdir(parents=True, exist_ok=True)
@@ -192,6 +193,20 @@ class EvalRunner:
                     f"avg_map: {score.avg_map:.3f}",
                 ]
             (case_dir / "report.txt").write_text("\n".join(lines), encoding="utf-8")
+
+            # 保存 Judge 缓存：predicted segments + 集锦路径，供后续独立跑 Judge
+            raw = results_by_id.get(score.case_id)
+            if raw and raw.get("judge_segments"):
+                (case_dir / "judge_cache.json").write_text(json.dumps({
+                    "case_id": score.case_id,
+                    "category": score.category,
+                    "difficulty": score.difficulty,
+                    "target": raw.get("target", ""),
+                    "style": raw.get("style", ""),
+                    "core_highlight_definition": raw.get("core_highlight_definition", ""),
+                    "segments": raw["judge_segments"],
+                    "video_path": raw.get("edit_output_path", ""),
+                }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def _run_case(self, case: dict[str, Any]) -> dict[str, Any]:
         import tracemalloc
