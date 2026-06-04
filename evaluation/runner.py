@@ -113,10 +113,13 @@ class EvalRunner:
 
         report_text = report_gen.generate(eval_report, judge_report, weighted)
 
-        # 上传报告到 TOS + 清理临时视频片段
+        # 上传报告到 TOS + 清理临时视频片段（Judge 成功时才清理）
         if self.config.output_dir:
             self._upload_reports_to_tos(Path(self.config.output_dir))
-            self._cleanup_clips(Path(self.config.output_dir))
+            if not judge_report.degraded:
+                self._cleanup_clips(Path(self.config.output_dir))
+            else:
+                logger.info("LLM Judge 未完成，保留视频片段供后续重试")
 
         return eval_report, judge_report, report_text
 
