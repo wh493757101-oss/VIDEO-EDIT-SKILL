@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,7 @@ class DetectorConfig:
     ark_model: str = field(default_factory=lambda: os.environ.get("ARK_HIGHLIGHT_MODEL", ""))
     ark_temperature: float = 0.3
     ark_max_tokens: int = 4096
+    max_api_video_mb: int = 30
 
 
 HIGHLIGHT_PROMPT = """你是一个专业的视频高光检测分析器。请完整观看以下视频（包含画面和音频），根据用户的剪辑需求识别出最精彩的高光片段。
@@ -84,8 +86,39 @@ class HighlightDetector:
         metadata: VideoMetadata,
         description: str = "",
     ) -> DetectionResult:
-        """多模态高光检测。失败直接抛异常，不降级。"""
+        """多模态高光检测。大视频自动压缩后发送，失败直接抛异常。"""
         return self._detect_multimodal(metadata, description)
+
+    def _compress_for_detection(self, video_path: str) -> str:
+        """将大视频压缩到适合 API 传输的大小（720p + 低码率），返回压缩后路径。
+
+        小于 max_api_video_mb 的视频不压缩，直接返回原路径。
+        压缩保留原始帧率和时长，只改分辨率和码率。
+        """
+        threshold_bytes = self.config.max_api_video_mb * 1024 * 1024
+        file_size = os.path.getsize(video_path)
+        if file_size <= threshold_bytes:
+            return video_path
+
+        from .video_fetcher import _get_ffmpeg
+
+        compressed = video_path + ".api_input.mp4"
+        ffmpeg = _get_ffmpeg()
+        cmd = [
+            ffmpeg, "-y", "-i", video_path,
+            "-vf", "scale='min(1280,iw)':min(720,ih):force_original_aspect_ratio=decrease",
+            "-c:v", "libx264", "-crf", "30", "-preset", "faster",
+            "-c:a", "aac", "-b:a", "64k",
+            "-movflags", "+faststart",
+            compressed,
+        ]
+        subprocess.run(cmd, check=True, capture_output=True, timeout=180)
+        new_size = os.path.getsize(compressed)
+        logger.info(
+            "视频压缩: %.1fMB -> %.1fMB (%.0f%%)",
+            file_size / 1e6, new_size / 1e6, new_size / file_size * 100,
+        )
+        return compressed
 
     @property
     def call_count(self) -> int:
@@ -109,9 +142,12 @@ class HighlightDetector:
             user_instruction=description or "识别视频中最精彩的高光片段",
         )
 
+        # 大视频先压缩再发送，避免 base64 体积过大导致 API 拒绝
+        api_video_path = self._compress_for_detection(str(video_path))
+
         response = self.ark_client.chat_with_video(
             text=prompt,
-            video_path=str(video_path),
+            video_path=api_video_path,
             model=self.config.ark_model,
             temperature=self.config.ark_temperature,
             max_tokens=self.config.ark_max_tokens,
