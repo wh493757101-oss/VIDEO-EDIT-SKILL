@@ -29,7 +29,7 @@ class DetectorConfig:
     ark_model: str = field(default_factory=lambda: os.environ.get("ARK_HIGHLIGHT_MODEL", ""))
     ark_temperature: float = 0.3
     ark_max_tokens: int = 4096
-    max_api_video_mb: int = 30
+    max_api_video_mb: int = 20
 
 
 HIGHLIGHT_PROMPT = """你是一个专业的视频高光检测分析器。请完整观看以下视频（包含画面和音频），根据用户的剪辑需求识别出最精彩的高光片段。
@@ -107,7 +107,7 @@ class HighlightDetector:
         cmd = [
             ffmpeg, "-y", "-i", video_path,
             "-vf", "scale=-2:720",
-            "-c:v", "libx264", "-crf", "30", "-preset", "faster",
+            "-c:v", "libx264", "-crf", "35", "-preset", "faster",
             "-c:a", "aac", "-b:a", "64k",
             "-movflags", "+faststart",
             compressed,
