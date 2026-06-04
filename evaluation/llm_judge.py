@@ -328,19 +328,9 @@ class LLMJudge:
             return video_path
 
         path = Path(video_path)
-        if "dashscope" in self.config.base_url:
-            with open(path, "rb") as f:
-                data = base64.b64encode(f.read()).decode()
-            return f"data:video/mp4;base64,{data}"
-        else:
-            result = self.ark_client.upload_file(str(path))
-            download_url = result.get("download_url", "")
-            if not download_url:
-                raise RuntimeError(
-                    "Files API 未返回 download_url: "
-                    f"{json.dumps(result, ensure_ascii=False)[:200]}"
-                )
-            return download_url
+        with open(path, "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        return f"data:video/mp4;base64,{data}"
 
     def _call_judge_api(
         self,
