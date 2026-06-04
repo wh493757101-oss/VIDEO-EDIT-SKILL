@@ -13,3 +13,4 @@ reports/
 .clawhubignore
 .idea/
 evaluation/test_cases/**/video.mp4
+evaluation/results/

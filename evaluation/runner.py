@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -6,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .evaluator import EvalReport, HighlightEvaluator, TestCaseLoader, compute_weighted_score
+from .evaluator import CaseScore, EvalReport, HighlightEvaluator, TestCaseLoader, compute_weighted_score
 from .llm_judge import JudgeReport, LLMJudge
 from .report import ReportConfig, ReportGenerator
 
@@ -98,15 +99,75 @@ class EvalRunner:
             weight_judge=self.config.judge_weight,
         )
 
-        report_gen = ReportGenerator(
-            ReportConfig(
-                output_dir=self.config.output_dir,
-                save_json=bool(self.config.output_dir),
+        # 保存每 case 独立报告
+        if self.config.output_dir:
+            self._save_per_case_reports(eval_report, Path(self.config.output_dir))
+            # 汇总报告保存到 all/ 子目录
+            all_dir = Path(self.config.output_dir) / "all"
+            all_dir.mkdir(parents=True, exist_ok=True)
+            report_gen = ReportGenerator(
+                ReportConfig(output_dir=str(all_dir), save_json=True)
             )
-        )
-        report_text = report_gen.generate(eval_report, judge_report, weighted)
+        else:
+            report_gen = ReportGenerator(ReportConfig())
 
+        report_text = report_gen.generate(eval_report, judge_report, weighted)
         return eval_report, judge_report, report_text
+
+    def _save_per_case_reports(self, eval_report: EvalReport, out_root: Path) -> None:
+        """为每个 case 生成独立 report.json 和 report.txt。"""
+        for score in eval_report.scores:
+            case_dir = out_root / score.case_id
+            case_dir.mkdir(parents=True, exist_ok=True)
+            per_case = {
+                "case_id": score.case_id,
+                "category": score.category,
+                "difficulty": score.difficulty,
+                "source_type": score.source_type,
+                "precision": round(score.precision, 3),
+                "recall": round(score.recall, 3),
+                "f1": round(score.f1, 3),
+                "hit_rate_1": round(score.hit_rate_1, 3),
+                "hit_rate_3": round(score.hit_rate_3, 3),
+                "mae": round(score.mae, 2),
+                "segment_count_deviation": round(score.segment_count_deviation, 2),
+                "total_duration_ratio": round(score.total_duration_ratio, 3),
+                "instruction_duration_fit": round(score.instruction_duration_fit, 2),
+                "map_50": round(score.map_50, 3),
+                "map_75": round(score.map_75, 3),
+                "avg_map": round(score.avg_map, 3),
+                "kendall_tau": round(score.kendall_tau, 3) if score.kendall_tau is not None else None,
+                "spearman_rho": round(score.spearman_rho, 3) if score.spearman_rho is not None else None,
+                "iou_distribution": score.iou_distribution,
+                "error": score.error,
+            }
+            (case_dir / "report.json").write_text(
+                json.dumps(per_case, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            lines = [
+                f"case_id: {score.case_id}",
+                f"category: {score.category}",
+                f"difficulty: {score.difficulty}",
+                f"source_type: {score.source_type}",
+            ]
+            if score.error:
+                lines.append(f"error: {score.error}")
+            else:
+                lines += [
+                    f"precision: {score.precision:.3f}",
+                    f"recall: {score.recall:.3f}",
+                    f"f1: {score.f1:.3f}",
+                    f"hit_rate_1: {score.hit_rate_1:.3f}",
+                    f"hit_rate_3: {score.hit_rate_3:.3f}",
+                    f"mae: {score.mae:.2f}s",
+                    f"segment_count_deviation: {score.segment_count_deviation:.2f}",
+                    f"total_duration_ratio: {score.total_duration_ratio:.1%}",
+                    f"instruction_duration_fit: {score.instruction_duration_fit:.2f}",
+                    f"map_50: {score.map_50:.3f}",
+                    f"map_75: {score.map_75:.3f}",
+                    f"avg_map: {score.avg_map:.3f}",
+                ]
+            (case_dir / "report.txt").write_text("\n".join(lines), encoding="utf-8")
 
     def _run_case(self, case: dict[str, Any]) -> dict[str, Any]:
         import tracemalloc
@@ -181,6 +242,7 @@ class EvalRunner:
             "category": case["category"],
             "difficulty": case["difficulty"],
             "source_type": case["source_type"],
+            "instruction": instruction,
             "predicted": predicted,
             "ground_truth": case["ground_truth"],
             "target": description,
@@ -197,6 +259,7 @@ class EvalRunner:
             "edit_output_path": result.edit.output_path if result.edit else "",
             "judge_segments": judge_segments,
             "timing": timing,
+            "pipeline_error": result.error,
         }
 
     def _run_concurrent(self, cases: list[dict[str, Any]]) -> list[dict[str, Any]]:

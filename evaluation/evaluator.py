@@ -308,14 +308,32 @@ class HighlightEvaluator:
         source_type: str = "local",
         target_duration: float | None = None,
         video_duration: float = 0.0,
+        pipeline_error: str | None = None,
+        instruction_error: str | None = None,
     ) -> CaseScore:
+        if pipeline_error:
+            return CaseScore(
+                case_id=case_id,
+                category=category,
+                difficulty=difficulty,
+                source_type=source_type,
+                error=pipeline_error,
+            )
+        if instruction_error:
+            return CaseScore(
+                case_id=case_id,
+                category=category,
+                difficulty=difficulty,
+                source_type=source_type,
+                error=f"指令解析失败: {instruction_error}",
+            )
         if not ground_truth:
             return CaseScore(
                 case_id=case_id,
                 category=category,
                 difficulty=difficulty,
                 source_type=source_type,
-                error="ground_truth 为空",
+                error="ground_truth 为空（评测跳过）",
             )
 
         if not predicted:
@@ -429,6 +447,7 @@ class HighlightEvaluator:
 
         for r in results:
             target_duration = parse_target_duration(r.get("target", ""))
+            inst = r.get("instruction", {})
             score = self.score_case(
                 case_id=r.get("case_id", ""),
                 predicted=r.get("predicted", []),
@@ -438,6 +457,8 @@ class HighlightEvaluator:
                 source_type=r.get("source_type", "local"),
                 target_duration=target_duration,
                 video_duration=r.get("video_duration", 0.0),
+                pipeline_error=r.get("pipeline_error"),
+                instruction_error=inst.get("parse_error"),
             )
             report.scores.append(score)
 

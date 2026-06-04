@@ -263,7 +263,18 @@ print(report_text)
 
 ## 九、输出产物
 
-### report.txt
+评测完成后生成以下目录结构：
+
+```
+output_dir/
+├── case_bm_001/report.json + report.txt   # 每用例独立报告
+├── case_bm_002/report.json + report.txt
+├── ...
+├── case_bm_030/report.json + report.txt
+└── all/report.json + report.txt           # 汇总报告
+```
+
+### 每用例报告 (case_XXX/report.json)
 
 两部分：整体汇总 + 每用例详情。
 
