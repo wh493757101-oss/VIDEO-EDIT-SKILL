@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import os
@@ -326,8 +327,10 @@ class LLMJudge:
         if video_path.startswith(("http://", "https://", "tos://", "data:")):
             return video_path
 
-        from src.tos_helper import ensure_tos_video_path
-        return ensure_tos_video_path(video_path)
+        path = Path(video_path)
+        with open(path, "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        return f"data:video/mp4;base64,{data}"
 
     def _call_judge_api(
         self,
