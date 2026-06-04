@@ -112,7 +112,31 @@ class EvalRunner:
             report_gen = ReportGenerator(ReportConfig())
 
         report_text = report_gen.generate(eval_report, judge_report, weighted)
+
+        # 上传报告到 TOS + 清理临时视频片段
+        if self.config.output_dir:
+            self._upload_reports_to_tos(Path(self.config.output_dir))
+            self._cleanup_clips(Path(self.config.output_dir))
+
         return eval_report, judge_report, report_text
+
+    def _upload_reports_to_tos(self, out_root: Path) -> None:
+        try:
+            from src.tos_helper import upload_report
+        except ImportError:
+            return
+        for f in out_root.rglob("*.json"):
+            upload_report(str(f))
+        for f in out_root.rglob("*.txt"):
+            upload_report(str(f))
+        logger.info("报告已上传到 TOS")
+
+    def _cleanup_clips(self, out_root: Path) -> None:
+        try:
+            from src.tos_helper import delete_local_clips
+        except ImportError:
+            return
+        delete_local_clips(str(out_root))
 
     def _save_per_case_reports(self, eval_report: EvalReport, out_root: Path) -> None:
         """为每个 case 生成独立 report.json 和 report.txt。"""
