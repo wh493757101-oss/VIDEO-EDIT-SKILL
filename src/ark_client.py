@@ -137,6 +137,25 @@ class ArkClient:
             video_b64 = base64.b64encode(f.read()).decode()
 
         video_url = f"data:video/mp4;base64,{video_b64}"
+        return self.chat_with_video_url(
+            text=text,
+            video_url=video_url,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format=response_format,
+        )
+
+    def chat_with_video_url(
+        self,
+        text: str,
+        video_url: str,
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        response_format: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """通过视频 URL（HTTPS 或 base64 data URI）调用多模态模型。"""
         content: list[dict[str, Any]] = [
             {"type": "video_url", "video_url": {"url": video_url}},
             {"type": "text", "text": text},
