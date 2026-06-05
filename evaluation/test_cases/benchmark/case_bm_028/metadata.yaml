@@ -1,6 +1,0 @@
-source: benchmark
-duration: 0
-fps: null
-resolution: null
-scene_type: 对抗测试
-adversarial_type: 格式伪装-图片

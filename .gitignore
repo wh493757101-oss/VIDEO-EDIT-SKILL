@@ -12,7 +12,8 @@ reports/
 .claude/
 .clawhubignore
 .idea/
-evaluation/test_cases/**/video.mp4
+evaluation/test_cases/
 evaluation/results/
 *.api_input.mp4
 evaluation/备份/
+evaluation/INDUSTRY_SURVEY.md

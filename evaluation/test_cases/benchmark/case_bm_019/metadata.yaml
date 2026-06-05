@@ -1,6 +1,0 @@
-source: benchmark
-duration: 172
-fps: null
-resolution: null
-scene_type: 对抗测试
-adversarial_type: 空指令

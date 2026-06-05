@@ -107,7 +107,8 @@ video-highlight-skill/
 │   ├── video_fetcher.py        # 视频获取与预处理（校验/转码）
 │   ├── video_editor.py         # FFmpeg 智能拼接（流拷贝/重编码自适应 + 音频归一化 + 转场）
 │   ├── highlight_detector.py   # 多模态大模型高光识别
-│   └── ark_client.py           # Ark API 封装（多模态识别/文件上传/LLM Judge）
+│   ├── ark_client.py           # Ark API 封装（多模态识别/文件上传/LLM Judge）
+│   └── tos_helper.py           # TOS 对象存储（上传/下载/签名 URL）
 ├── evaluation/
 │   ├── evaluator.py            # tIoU 自动评测
 │   ├── llm_judge.py            # LLM-as-Judge 多维度打分

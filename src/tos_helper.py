@@ -72,6 +72,24 @@ def upload_report(local_path: str) -> str:
     return key
 
 
+def upload_input_video(local_path: str) -> str:
+    """上传原始视频到 TOS input/，返回签名 URL。"""
+    key = f"{BASE_PREFIX}/input/{Path(local_path).name}"
+    client = _get_tos_client()
+    client.put_object_from_file(BUCKET, key, local_path)
+    logger.info("原始视频已上传: %s", key)
+    return client.pre_signed_url(BUCKET, key, expires=7200)
+
+
+def upload_output_video(local_path: str) -> str:
+    """上传集锦视频到 TOS output/，返回签名 URL。"""
+    key = f"{BASE_PREFIX}/output/{Path(local_path).name}"
+    client = _get_tos_client()
+    client.put_object_from_file(BUCKET, key, local_path)
+    logger.info("集锦视频已上传: %s", key)
+    return client.pre_signed_url(BUCKET, key, expires=7200)
+
+
 def delete_local_clips(results_dir: str) -> None:
     """删除评测过程中生成的临时视频片段目录，只保留报告。"""
     root = Path(results_dir)

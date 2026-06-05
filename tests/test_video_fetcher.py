@@ -30,39 +30,50 @@ class TestLocalFileSource:
 
 
 class TestUrlSource:
-    def test_resolve_success(self, mocker):
-        mock_run = mocker.patch("subprocess.run")
-        mocker.patch("tempfile.mkdtemp", return_value="/tmp/video_dl_abc")
-        mocker.patch.object(
-            Path, "glob", return_value=[Path("/tmp/video_dl_abc/title.mp4")]
-        )
-        # mock _convert_to_mp4 to avoid ffmpeg call
-        mocker.patch(
-            "src.video_fetcher._convert_to_mp4",
-            return_value="/tmp/video_dl_abc/title.mp4",
-        )
+    def test_resolve_success(self, mocker, tmp_path):
+        dl_dir = tmp_path / "video_dl_abc"
+        dl_dir.mkdir()
+        (dl_dir / "title.mp4").write_bytes(b"fake video")
+
+        mocker.patch("tempfile.mkdtemp", return_value=str(dl_dir))
+        mock_ydl_cls = mocker.MagicMock()
+        mock_ydl_instance = mocker.MagicMock()
+        mock_ydl_cls.return_value.__enter__ = mocker.Mock(return_value=mock_ydl_instance)
+        mock_ydl_cls.return_value.__exit__ = mocker.Mock(return_value=False)
+        mocker.patch("yt_dlp.YoutubeDL", mock_ydl_cls)
 
         source = UrlSource("https://example.com/video")
         result = source.resolve()
 
-        assert result.replace("\\", "/") == "/tmp/video_dl_abc/title.mp4"
-        mock_run.assert_called_once()
+        assert result.replace("\\", "/").endswith("title.mp4")
+        mock_ydl_instance.download.assert_called_once()
 
-    def test_resolve_download_failure(self, mocker):
-        mocker.patch("tempfile.mkdtemp", return_value="/tmp/video_dl_abc")
-        mocker.patch(
-            "subprocess.run",
-            side_effect=subprocess.CalledProcessError(1, "yt-dlp", stderr="download error"),
-        )
+    def test_resolve_download_failure(self, mocker, tmp_path):
+        dl_dir = tmp_path / "video_dl_abc"
+        dl_dir.mkdir()
+
+        mocker.patch("tempfile.mkdtemp", return_value=str(dl_dir))
+        mock_ydl_cls = mocker.MagicMock()
+        mock_ydl_instance = mocker.MagicMock()
+        mock_ydl_instance.download.side_effect = Exception("HTTP Error 412")
+        mock_ydl_cls.return_value.__enter__ = mocker.Mock(return_value=mock_ydl_instance)
+        mock_ydl_cls.return_value.__exit__ = mocker.Mock(return_value=False)
+        mocker.patch("yt_dlp.YoutubeDL", mock_ydl_cls)
 
         source = UrlSource("https://example.com/video")
         with pytest.raises(RuntimeError, match="视频下载失败"):
             source.resolve()
 
-    def test_resolve_no_output_file(self, mocker):
-        mocker.patch("subprocess.run")
-        mocker.patch("tempfile.mkdtemp", return_value="/tmp/video_dl_abc")
-        mocker.patch.object(Path, "glob", return_value=[])
+    def test_resolve_no_output_file(self, mocker, tmp_path):
+        dl_dir = tmp_path / "video_dl_abc"
+        dl_dir.mkdir()
+
+        mocker.patch("tempfile.mkdtemp", return_value=str(dl_dir))
+        mock_ydl_cls = mocker.MagicMock()
+        mock_ydl_instance = mocker.MagicMock()
+        mock_ydl_cls.return_value.__enter__ = mocker.Mock(return_value=mock_ydl_instance)
+        mock_ydl_cls.return_value.__exit__ = mocker.Mock(return_value=False)
+        mocker.patch("yt_dlp.YoutubeDL", mock_ydl_cls)
 
         source = UrlSource("https://example.com/video")
         with pytest.raises(RuntimeError, match="未找到输出文件"):

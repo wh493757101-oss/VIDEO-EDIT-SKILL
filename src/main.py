@@ -69,6 +69,8 @@ class PipelineResult:
     timing: PipelineTiming = field(default_factory=PipelineTiming)
     detection_usage: TokenUsage = field(default_factory=TokenUsage)
     judge_usage: TokenUsage = field(default_factory=TokenUsage)
+    input_tos_url: str = ""
+    output_tos_url: str = ""
 
 
 class VideoHighlightPipeline:
@@ -120,6 +122,22 @@ class VideoHighlightPipeline:
         session_dir.mkdir(parents=True, exist_ok=True)
         return str(session_dir)
 
+    def _try_upload_input(self, local_path: str) -> str:
+        try:
+            from .tos_helper import upload_input_video
+            return upload_input_video(local_path)
+        except Exception as e:
+            logger.debug("原始视频上传 TOS 跳过: %s", e)
+            return ""
+
+    def _try_upload_output(self, local_path: str) -> str:
+        try:
+            from .tos_helper import upload_output_video
+            return upload_output_video(local_path)
+        except Exception as e:
+            logger.debug("集锦视频上传 TOS 跳过: %s", e)
+            return ""
+
     def _run_impl(
         self,
         source: VideoSource,
@@ -132,6 +150,8 @@ class VideoHighlightPipeline:
         metadata = self.fetcher.fetch(source)
         t_fetch = time.time() - t0
         logger.info("视频预处理完成: duration=%.1fs, fps=%.1f", metadata.duration, metadata.fps)
+
+        input_tos_url = self._try_upload_input(metadata.path)
 
         session_dir = self._make_session_dir(metadata.path)
 
@@ -168,6 +188,8 @@ class VideoHighlightPipeline:
         logger.info("FFmpeg 拼接完成: output=%s, segments=%d",
                     edit.output_path, len(edit.segments))
 
+        output_tos_url = self._try_upload_output(edit.output_path)
+
         timing = PipelineTiming(
             fetch=t_fetch,
             detection=t_detect,
@@ -179,6 +201,8 @@ class VideoHighlightPipeline:
             elapsed_time=time.time() - t_start,
             timing=timing,
             detection_usage=detection_usage,
+            input_tos_url=input_tos_url,
+            output_tos_url=output_tos_url,
         )
 
     def run_from_path(
@@ -233,6 +257,11 @@ class VideoHighlightPipeline:
             lines.append("\n[剪辑输出]")
             lines.append(f"  输出路径: {result.edit.output_path}")
 
+        if result.input_tos_url:
+            lines.append(f"\n[原始视频下载链接] {result.input_tos_url}")
+        if result.output_tos_url:
+            lines.append(f"[集锦视频下载链接] {result.output_tos_url}")
+
         if result.detection_usage.total > 0:
             lines.append(f"\n[Token 消耗 - 多模态识别]")
             lines.append(f"  输入: {result.detection_usage.input_tokens} tokens")
@@ -268,6 +297,11 @@ class VideoHighlightPipeline:
                 "detection": result.detection_usage.to_dict(),
                 "judge": result.judge_usage.to_dict(),
             }
+
+        if result.input_tos_url:
+            output["input_tos_url"] = result.input_tos_url
+        if result.output_tos_url:
+            output["output_tos_url"] = result.output_tos_url
 
         if result.error:
             output["error"] = result.error

@@ -61,6 +61,12 @@ def _get_ytdlp() -> str:
     return _YT_DLP_PATH
 
 
+DEFAULT_HEADERS: dict[str, str] = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Referer": "https://www.bilibili.com/",
+}
+
+
 @dataclass
 class VideoMetadata:
     path: str
@@ -89,26 +95,23 @@ class UrlSource:
         self.url = url
 
     def resolve(self) -> str:
+        from yt_dlp import YoutubeDL
+
         output_dir = Path(tempfile.mkdtemp(prefix="video_dl_"))
-        cmd = [
-            _get_ytdlp(),
-            "--no-playlist",
-            "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-            "-o", str(output_dir / "%(title)s.%(ext)s"),
-            self.url,
-        ]
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "no_playlist": True,
+            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+            "outtmpl": str(output_dir / "%(title)s.%(ext)s"),
+            "http_headers": DEFAULT_HEADERS,
+            "ffmpeg_location": _get_ffmpeg(),
+        }
         try:
-            subprocess.run(cmd, check=True, capture_output=True, timeout=600,
-                           env=_subprocess_env())
-        except FileNotFoundError:
-            raise RuntimeError(
-                "yt-dlp 未安装或不在 PATH 中，请执行: pip install yt-dlp"
-            )
-        except subprocess.TimeoutExpired:
-            raise RuntimeError(f"视频下载超时，请检查网络后重试: {self.url}")
-        except subprocess.CalledProcessError as e:
-            err_msg = _decode_stderr(e)[:500]
-            raise RuntimeError(f"视频下载失败，请检查链接是否有效后重试: {err_msg}") from e
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([self.url])
+        except Exception as e:
+            raise RuntimeError(f"视频下载失败，请检查链接是否有效后重试: {e}") from e
 
         files = list(output_dir.glob("*"))
         if not files:
