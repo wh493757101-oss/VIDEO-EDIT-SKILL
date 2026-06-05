@@ -375,31 +375,6 @@ class ReportGenerator:
                     for s in getattr(judge_report, "video_scores", [])
                 ],
             }
-            # 向后兼容
-            data["llm_judge"] = {
-                "overall_rhythm": round(getattr(judge_report, "overall_rhythm", 0), 2),
-                "overall_transition_quality": round(getattr(judge_report, "overall_transition_quality", 0), 2),
-                "overall_audiovisual_sync": round(getattr(judge_report, "overall_audiovisual_sync", 0), 2),
-                "overall_completeness": round(getattr(judge_report, "overall_completeness", 0), 2),
-                "overall_instruction_fit": round(getattr(judge_report, "overall_instruction_fit", 0), 2),
-                "overall_average": round(getattr(judge_report, "overall_average", 0), 2),
-                "degraded": getattr(judge_report, "degraded", False),
-                "cases": [
-                    {
-                        "rhythm": s.rhythm,
-                        "transition_quality": s.transition_quality,
-                        "audiovisual_sync": s.audiovisual_sync,
-                        "completeness": s.completeness,
-                        "instruction_fit": s.instruction_fit,
-                        "average": round(s.average, 1),
-                        "comment": s.overall_comment,
-                        "error": s.error,
-                    }
-                    for s in judge_report.scores
-                ],
-            }
-
-        if weighted:
-            data["weighted_score"] = weighted
+        if weighted:       data["weighted_score"] = weighted
 
         return json.dumps(data, ensure_ascii=False, indent=2)

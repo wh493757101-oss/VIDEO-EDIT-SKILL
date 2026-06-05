@@ -141,9 +141,6 @@ JUDGE_PROMPT_VIDEO = """你是一个严格、客观、标准统一的视频剪�
   "主要问题": "<至少 1 个具体问题，必须指出时间戳和具体问题，例：'00:01:23 转场出现 1 秒黑屏，00:03:00-00:03:15 片段被截断'>"
 }}"""
 
-# 保留旧 prompt 用于向后兼容的纯文本降级路径
-JUDGE_PROMPT_TEXT = JUDGE_PROMPT_SEGMENT
-
 
 # ============================================================
 # 数据结构
@@ -191,24 +188,6 @@ class VideoJudgeScore:
 
 
 @dataclass
-class JudgeScore:
-    """向后兼容：旧版评测分数，从 VideoJudgeScore 映射而来。"""
-    rhythm: float = 0.0
-    transition_quality: float = 0.0
-    audiovisual_sync: float = 0.0
-    completeness: float = 0.0
-    instruction_fit: float = 0.0
-    overall_comment: str = ""
-    error: str | None = None
-
-    @property
-    def average(self) -> float:
-        scores = [self.rhythm, self.transition_quality, self.audiovisual_sync,
-                  self.completeness, self.instruction_fit]
-        return sum(scores) / len(scores)
-
-
-@dataclass
 class JudgeReport:
     # Segment judge 聚合（3 维度）
     segment_scores: list[SegmentJudgeScore] = field(default_factory=list)
@@ -230,15 +209,6 @@ class JudgeReport:
     degraded: bool = False
     segment_degraded: bool = False
     video_degraded: bool = False
-
-    # 向后兼容聚合字段
-    scores: list[JudgeScore] = field(default_factory=list)
-    overall_rhythm: float = 0.0
-    overall_transition_quality: float = 0.0
-    overall_audiovisual_sync: float = 0.0
-    overall_completeness: float = 0.0
-    overall_instruction_fit: float = 0.0
-    overall_average: float = 0.0
 
 
 @dataclass
@@ -264,47 +234,6 @@ class LLMJudge:
                 model=self.config.model,
             ))
         return self._ark_client
-
-    # ============================================================
-    # 向后兼容方法（保留给 verify_e2e.py 等旧调用方）
-    # ============================================================
-
-    def build_prompt(
-        self,
-        category: str,
-        target: str,
-        style: str,
-        segments: list[dict[str, Any]],
-    ) -> str:
-        segment_lines = self._format_segment_lines(segments)
-        return JUDGE_PROMPT_TEXT.format(
-            category=category,
-            target=target or "精彩集锦",
-            style=style or "无特定要求",
-            segments="\n".join(segment_lines) if segment_lines else "无",
-        )
-
-    def judge(
-        self,
-        category: str,
-        target: str,
-        style: str,
-        segments: list[dict[str, Any]],
-        video_path: str = "",
-        max_retries: int = 3,
-    ) -> JudgeScore:
-        """向后兼容：委托给 judge_video，映射到旧 JudgeScore 格式。"""
-        core_def = "视频中最重要的高光时刻和关键场景"
-        vid_score = self.judge_video(category, target, style, core_def, segments, video_path, max_retries)
-        return JudgeScore(
-            rhythm=vid_score.rhythm,
-            transition_quality=vid_score.transition_quality,
-            audiovisual_sync=vid_score.audiovisual_sync,
-            completeness=vid_score.content_completeness,
-            instruction_fit=vid_score.instruction_fit,
-            overall_comment=vid_score.overall_comment,
-            error=vid_score.error,
-        )
 
     # ============================================================
     # 核心方法
@@ -506,6 +435,9 @@ class LLMJudge:
     def judge_all(self, cases: list[dict[str, Any]], max_retries: int = 3) -> JudgeReport:
         report = JudgeReport()
         if not cases:
+            report.degraded = True
+            report.segment_degraded = True
+            report.video_degraded = True
             return report
 
         # Segment judge 聚合（3 维度）
@@ -521,14 +453,6 @@ class LLMJudge:
         vid_total_cc = 0.0
         vid_total_if = 0.0
         vid_valid = 0
-
-        # 向后兼容聚合（5 维度）
-        compat_total_rhythm = 0.0
-        compat_total_tq = 0.0
-        compat_total_avs = 0.0
-        compat_total_cc = 0.0
-        compat_total_if = 0.0
-        compat_valid = 0
 
         for case in cases:
             core_def = case.get("core_highlight_definition", "视频中最重要的高光时刻和关键场景")
@@ -566,25 +490,6 @@ class LLMJudge:
                 vid_total_if += vid_score.instruction_fit
                 vid_valid += 1
 
-            # 向后兼容 JudgeScore
-            compat = JudgeScore(
-                rhythm=vid_score.rhythm,
-                transition_quality=vid_score.transition_quality,
-                audiovisual_sync=vid_score.audiovisual_sync,
-                completeness=vid_score.content_completeness,
-                instruction_fit=vid_score.instruction_fit,
-                overall_comment=vid_score.overall_comment,
-                error=vid_score.error,
-            )
-            report.scores.append(compat)
-            if not compat.error:
-                compat_total_rhythm += compat.rhythm
-                compat_total_tq += compat.transition_quality
-                compat_total_avs += compat.audiovisual_sync
-                compat_total_cc += compat.completeness
-                compat_total_if += compat.instruction_fit
-                compat_valid += 1
-
         # 聚合 segment judge（3 维度）
         if seg_valid > 0:
             report.segment_content_completeness = seg_total_cc / seg_valid
@@ -612,20 +517,7 @@ class LLMJudge:
         else:
             report.video_degraded = True
 
-        # 向后兼容聚合（5 维度）
-        if compat_valid > 0:
-            report.overall_rhythm = compat_total_rhythm / compat_valid
-            report.overall_transition_quality = compat_total_tq / compat_valid
-            report.overall_audiovisual_sync = compat_total_avs / compat_valid
-            report.overall_completeness = compat_total_cc / compat_valid
-            report.overall_instruction_fit = compat_total_if / compat_valid
-            report.overall_average = (
-                report.overall_rhythm + report.overall_transition_quality
-                + report.overall_audiovisual_sync + report.overall_completeness
-                + report.overall_instruction_fit
-            ) / 5
-        else:
-            report.degraded = True
+        report.degraded = report.segment_degraded and report.video_degraded
 
         return report
 

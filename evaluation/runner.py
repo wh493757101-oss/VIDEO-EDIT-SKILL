@@ -75,6 +75,8 @@ class EvalRunner:
         if self.config.skip_llm_judge:
             eval_report = evaluator.evaluate_all(results)
             judge_report.degraded = True
+            judge_report.segment_degraded = True
+            judge_report.video_degraded = True
         else:
             with ThreadPoolExecutor(max_workers=2) as executor:
                 eval_future = executor.submit(evaluator.evaluate_all, results)
@@ -86,6 +88,8 @@ class EvalRunner:
                         return judge.judge_all(judge_cases, max_retries=self.config.judge_max_retries)
                     jr = JudgeReport()
                     jr.degraded = True
+                    jr.segment_degraded = True
+                    jr.video_degraded = True
                     return jr
 
                 judge_future = executor.submit(_run_judge)
@@ -99,9 +103,12 @@ class EvalRunner:
             weight_judge=self.config.judge_weight,
         )
 
-        # 保存每 case 独立报告
+        # 构建 Judge 评分按 case_id 的映射
+        judge_by_case = self._build_judge_case_map(results, judge_report)
+
+        # 保存每 case 独立报告（含 tIoU + Judge 评分）
         if self.config.output_dir:
-            self._save_per_case_reports(eval_report, Path(self.config.output_dir), results)
+            self._save_per_case_reports(eval_report, Path(self.config.output_dir), judge_by_case)
             # 汇总报告保存到 all/ 子目录
             all_dir = Path(self.config.output_dir) / "all"
             all_dir.mkdir(parents=True, exist_ok=True)
@@ -141,9 +148,9 @@ class EvalRunner:
             return
         delete_local_clips(str(out_root))
 
-    def _save_per_case_reports(self, eval_report: EvalReport, out_root: Path, results: list[dict[str, Any]] | None = None) -> None:
-        """为每个 case 生成独立 report.json / report.txt / judge_cache.json。"""
-        results_by_id = {r["case_id"]: r for r in (results or [])}
+    def _save_per_case_reports(self, eval_report: EvalReport, out_root: Path, judge_by_case: dict[str, dict[str, Any]] | None = None) -> None:
+        """为每个 case 生成独立 report.json / report.txt，含 Judge 评分。"""
+        judge_by_case = judge_by_case or {}
         for score in eval_report.scores:
             case_dir = out_root / score.case_id
             case_dir.mkdir(parents=True, exist_ok=True)
@@ -169,6 +176,11 @@ class EvalRunner:
                 "iou_distribution": score.iou_distribution,
                 "error": score.error,
             }
+            # 写入 Judge 评分
+            jc = judge_by_case.get(score.case_id)
+            if jc:
+                per_case["segment_judge"] = jc.get("segment_judge")
+                per_case["video_judge"] = jc.get("video_judge")
             (case_dir / "report.json").write_text(
                 json.dumps(per_case, ensure_ascii=False, indent=2), encoding="utf-8"
             )
@@ -195,21 +207,37 @@ class EvalRunner:
                     f"map_75: {score.map_75:.3f}",
                     f"avg_map: {score.avg_map:.3f}",
                 ]
+                jc = judge_by_case.get(score.case_id)
+                if jc:
+                    sj = jc.get("segment_judge")
+                    if sj:
+                        lines.append("")
+                        lines.append("--- Segment Judge ---")
+                        if sj.get("error"):
+                            lines.append(f"  [ERROR] {sj['error']}")
+                        else:
+                            lines.append(f"  content_completeness: {sj['content_completeness']:.1f} / 10.0")
+                            lines.append(f"  segment_quality: {sj['segment_quality']:.1f} / 10.0")
+                            lines.append(f"  instruction_fit: {sj['instruction_fit']:.1f} / 10.0")
+                            lines.append(f"  average: {sj['average']:.1f} / 10.0")
+                            if sj.get("comment"):
+                                lines.append(f"  comment: {sj['comment']}")
+                    vj = jc.get("video_judge")
+                    if vj:
+                        lines.append("")
+                        lines.append("--- Video Judge ---")
+                        if vj.get("error"):
+                            lines.append(f"  [ERROR] {vj['error']}")
+                        else:
+                            lines.append(f"  rhythm: {vj['rhythm']:.1f} / 10.0")
+                            lines.append(f"  transition_quality: {vj['transition_quality']:.1f} / 10.0")
+                            lines.append(f"  audiovisual_sync: {vj['audiovisual_sync']:.1f} / 10.0")
+                            lines.append(f"  content_completeness: {vj['content_completeness']:.1f} / 10.0")
+                            lines.append(f"  instruction_fit: {vj['instruction_fit']:.1f} / 10.0")
+                            lines.append(f"  average: {vj['average']:.1f} / 10.0")
+                            if vj.get("comment"):
+                                lines.append(f"  comment: {vj['comment']}")
             (case_dir / "report.txt").write_text("\n".join(lines), encoding="utf-8")
-
-            # 保存 Judge 缓存：predicted segments + 集锦路径，供后续独立跑 Judge
-            raw = results_by_id.get(score.case_id)
-            if raw and raw.get("judge_segments"):
-                (case_dir / "judge_cache.json").write_text(json.dumps({
-                    "case_id": score.case_id,
-                    "category": score.category,
-                    "difficulty": score.difficulty,
-                    "target": raw.get("target", ""),
-                    "style": raw.get("style", ""),
-                    "core_highlight_definition": raw.get("core_highlight_definition", ""),
-                    "segments": raw["judge_segments"],
-                    "video_path": raw.get("edit_output_path", ""),
-                }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def _run_case(self, case: dict[str, Any]) -> dict[str, Any]:
         import tracemalloc
@@ -368,6 +396,7 @@ class EvalRunner:
             category = r.get("category", "")
             core_def = r.get("core_highlight_definition", "") or self._default_highlight_definition(category)
             judge_cases.append({
+                "case_id": r.get("case_id", ""),
                 "category": category,
                 "target": r.get("target", ""),
                 "style": r.get("style", ""),
@@ -376,3 +405,39 @@ class EvalRunner:
                 "video_path": r.get("edit_output_path", ""),
             })
         return judge_cases
+
+    def _build_judge_case_map(self, results: list[dict[str, Any]], judge_report: JudgeReport) -> dict[str, dict[str, Any]]:
+        """构建 case_id → {segment_judge, video_judge} 映射，用于更新每 case 报告。"""
+        # 按 results 中 predicted 非空的顺序建立索引
+        judge_idx = 0
+        mapping: dict[str, dict[str, Any]] = {}
+        for r in results:
+            if not r.get("predicted"):
+                continue
+            cid = r.get("case_id", "")
+            entry: dict[str, Any] = {}
+            if judge_idx < len(judge_report.segment_scores):
+                ss = judge_report.segment_scores[judge_idx]
+                entry["segment_judge"] = {
+                    "content_completeness": ss.content_completeness,
+                    "segment_quality": ss.segment_quality,
+                    "instruction_fit": ss.instruction_fit,
+                    "average": round(ss.average, 1),
+                    "comment": ss.overall_comment,
+                    "error": ss.error,
+                }
+            if judge_idx < len(judge_report.video_scores):
+                vs = judge_report.video_scores[judge_idx]
+                entry["video_judge"] = {
+                    "rhythm": vs.rhythm,
+                    "transition_quality": vs.transition_quality,
+                    "audiovisual_sync": vs.audiovisual_sync,
+                    "content_completeness": vs.content_completeness,
+                    "instruction_fit": vs.instruction_fit,
+                    "average": round(vs.average, 1),
+                    "comment": vs.overall_comment,
+                    "error": vs.error,
+                }
+            mapping[cid] = entry
+            judge_idx += 1
+        return mapping

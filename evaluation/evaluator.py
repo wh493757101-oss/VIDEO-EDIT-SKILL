@@ -637,8 +637,6 @@ def compute_weighted_score(
 
     if not segment_degraded or not video_degraded:
         judge_normalized = (segment_normalized + video_normalized) / 2.0
-    elif not degraded and hasattr(judge_report, "overall_average") and judge_report.overall_average > 0:
-        judge_normalized = judge_report.overall_average / 10.0
 
     if degraded and segment_degraded and video_degraded:
         weighted = eval_score

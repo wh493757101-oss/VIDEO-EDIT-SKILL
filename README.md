@@ -116,12 +116,10 @@ video-highlight-skill/
 │   └── test_cases/
 │       └── benchmark/          # 30 组 benchmark 评测用例（normal/complex/adversarial）
 ├── scripts/
-│   ├── verify_e2e.py           # 端到端验证脚本
-│   ├── verify_e2e_strict.py    # 严格端到端验证
-│   ├── verify_connectivity.py  # API 连通性验证
 │   ├── annotate.py             # 交互式视频标注工具
 │   ├── generate_benchmark.py   # Benchmark 数据集脚手架生成器
-│   ├── fix_instructions.py     # Benchmark 指令批量更新
+│   ├── upload_to_tos.py        # 批量上传视频到 TOS
+│   ├── gen_report.py           # 从 report.json 重新生成 report.txt
 └── tests/
     └── test_*.py
 ```

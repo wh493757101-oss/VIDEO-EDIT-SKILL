@@ -276,6 +276,54 @@ output_dir/
 
 ### 每用例报告 (case_XXX/report.json)
 
+每个 case 的 `report.json` 必须包含 tIoU 量化指标 + LLM Judge 主观评分（若已运行 Judge）。
+
+**必含字段：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| case_id, category, difficulty, source_type | string | 用例元信息 |
+| precision, recall, f1 | float | tIoU 匹配的精确率/召回率/F1 |
+| hit_rate_1, hit_rate_3 | float | Top-1/Top-3 命中率 |
+| mae | float | 时间偏差（秒） |
+| segment_count_deviation | float | 片段数偏差率 |
+| total_duration_ratio | float | 集锦时长占比 |
+| instruction_duration_fit | float | 指令时长契合度 |
+| map_50, map_75, avg_map | float | 多阈值 mAP |
+| kendall_tau, spearman_rho | float/null | 排序相关性 |
+| iou_distribution | object | tIoU 三档分布 |
+| error | string/null | 执行错误信息 |
+| segment_judge | object/null | **Segment Judge 评分（Judge 运行后必有）** |
+| video_judge | object/null | **Video Judge 评分（Judge 运行后必有）** |
+
+**segment_judge 结构：**
+```json
+{
+  "content_completeness": 8.0,
+  "segment_quality": 9.0,
+  "instruction_fit": 7.0,
+  "average": 8.0,
+  "comment": "片段画面清晰，内容完整...",
+  "error": null
+}
+```
+
+**video_judge 结构：**
+```json
+{
+  "rhythm": 8.0,
+  "transition_quality": 8.5,
+  "audiovisual_sync": 9.0,
+  "content_completeness": 8.0,
+  "instruction_fit": 8.0,
+  "average": 8.3,
+  "comment": "剪辑节奏紧凑，音画同步...",
+  "error": null
+}
+```
+
+> **⚠️ 关键要求：`segment_judge` 和 `video_judge` 必须在 e2e 评测流程中自动写入每 case 的 `report.json`，不能仅存在于汇总报告中。Judge 未运行或 case 无 predicted 片段时，这两个字段为 null。**
+
 两部分：整体汇总 + 每用例详情。
 
 **整体汇总：**
