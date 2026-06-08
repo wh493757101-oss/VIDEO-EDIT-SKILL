@@ -78,7 +78,11 @@ class HighlightDetector:
     def ark_client(self) -> ArkClient:
         if self._ark_client is None:
             api_key = os.environ.get("ARK_HIGHLIGHT_API_KEY", "")
-            self._ark_client = ArkClient(ArkConfig(api_key=api_key, model=self.config.ark_model))
+            self._ark_client = ArkClient(ArkConfig(
+                api_key=api_key,
+                model=self.config.ark_model,
+                video_upload_mode=os.environ.get("ARK_VIDEO_UPLOAD_MODE", "base64"),
+            ))
         return self._ark_client
 
     def detect(

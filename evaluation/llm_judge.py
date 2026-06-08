@@ -228,10 +228,12 @@ class LLMJudge:
     def ark_client(self):
         if self._ark_client is None:
             from src.ark_client import ArkClient, ArkConfig
+            import os
             self._ark_client = ArkClient(ArkConfig(
                 api_key=self.config.api_key,
                 base_url=self.config.base_url,
                 model=self.config.model,
+                video_upload_mode=os.environ.get("ARK_VIDEO_UPLOAD_MODE", "base64"),
             ))
         return self._ark_client
 

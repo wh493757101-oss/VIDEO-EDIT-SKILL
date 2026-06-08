@@ -22,6 +22,7 @@ class ArkConfig:
     max_retries: int = 3
     timeout: float = 120.0
     upload_timeout: float = 300.0
+    video_upload_mode: str = "base64"  # "base64" | "file_url"
 
 
 def _encode_image(image_path: str) -> str:
@@ -133,13 +134,59 @@ class ArkClient:
         if not path.exists():
             raise FileNotFoundError(f"视频文件不存在: {video_path}，请检查文件路径后重试")
 
+        mode = self.config.video_upload_mode
+        if mode == "file_url":
+            return self._chat_with_video_via_upload(
+                text=text,
+                video_path=str(path),
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format=response_format,
+            )
+
+        # base64 模式（默认）
+        file_size_mb = path.stat().st_size / 1e6
+        logger.debug("视频 base64 编码: %.1fMB", file_size_mb)
+        t0 = time.time()
         with open(path, "rb") as f:
             video_b64 = base64.b64encode(f.read()).decode()
-
         video_url = f"data:video/mp4;base64,{video_b64}"
+        logger.debug("base64 编码完成: %.1fs, %.1fMB (编码后)", time.time() - t0, len(video_b64) / 1e6)
         return self.chat_with_video_url(
             text=text,
             video_url=video_url,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format=response_format,
+        )
+
+    def _chat_with_video_via_upload(
+        self,
+        text: str,
+        video_path: str,
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        response_format: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """通过 Files API 上传视频，拿到 download_url 后调用 chat API。"""
+        file_size_mb = Path(video_path).stat().st_size / 1e6
+        logger.info("视频上传到 Ark Files API: %.1fMB", file_size_mb)
+        t0 = time.time()
+
+        file_obj = self.upload_file(video_path)
+        download_url = file_obj.get("download_url", "")
+        if not download_url:
+            raise RuntimeError(f"Ark Files API 未返回 download_url，返回内容: {file_obj}")
+
+        elapsed = time.time() - t0
+        logger.info("视频上传完成: %.1fs, download_url=%s", elapsed, download_url[:80])
+
+        return self.chat_with_video_url(
+            text=text,
+            video_url=download_url,
             model=model,
             temperature=temperature,
             max_tokens=max_tokens,
